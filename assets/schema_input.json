@@ -44,10 +44,9 @@
                 "type": "string",
                 "format": "file-path",
                 "pattern": "^\\S+\\.f(a|asta|na|as)\\.gz$",
-                "errorMessage": "FastA file must be provided, cannot contain spaces and must have extension '.fa.gz', '.fasta.gz', '.fna.gz', or '.fas.gz'",
-                "exists": true
+                "errorMessage": "FastA file must be provided, cannot contain spaces and must have extension '.fa.gz', '.fasta.gz', '.fna.gz', or '.fas.gz'"
             }
         },
-        "required": ["sample", "group", "fastq_1", "fasta"]
+        "required": ["sample", "group"]
     }
 }
