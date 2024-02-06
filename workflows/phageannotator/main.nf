@@ -72,23 +72,39 @@ workflow PHAGEANNOTATOR {
     main:
     ch_versions                         = Channel.empty()
 
+    // make a channel for each item that contains a fastq file
+    ch_fastq_gz_branch = fastq_gz
+        .branch {
+            meta, fastq_gz ->
+                fastq_included: fastq_gz[0].size() > 0
+                fastq_missing: fastq_gz[0].size() == 0
+        }
+
+    // make a channel for each item that contains a fasta file
+    ch_fasta_gz_branch = fasta_gz
+        .branch {
+            meta, fasta_gz ->
+                fasta_included: fasta_gz.size() > 0
+                fasta_missing: fasta_gz.size() == 0
+        }
 
     /*----------------------------------------------------------------------------
         Estimate viral enrichment in reads
     ------------------------------------------------------------------------------*/
     if ( !params.skip_viromeqc ) {
-        ch_virus_enrichment_tsv = FASTQ_VIRUS_ENRICHMENT_VIROMEQC ( fastq_gz ).enrichment_tsv
+        ch_virus_enrichment_tsv = FASTQ_VIRUS_ENRICHMENT_VIROMEQC ( ch_fastq_gz_branch.fastq_included ).enrichment_tsv
         ch_versions = ch_versions.mix(FASTQ_VIRUS_ENRICHMENT_VIROMEQC.out.versions)
     } else {
         ch_virus_enrichment_tsv = Channel.empty()
     }
 
-
     //
     // MODULE: Filter assemblies by length
     //
-    ch_filtered_input_fasta_gz = SEQKIT_SEQ ( fasta_gz ).fastx
+    ch_filtered_input_fasta_gz = SEQKIT_SEQ ( ch_fasta_gz_branch.fasta_included ).fastx
     ch_versions = ch_versions.mix(SEQKIT_SEQ.out.versions)
+
+    ch_filtered_input_w_missing_fasta_gz = ch_filtered_input_fasta_gz.mix( ch_fasta_gz_branch.fasta_missing )
 
 
     /*----------------------------------------------------------------------------
@@ -114,12 +130,11 @@ workflow PHAGEANNOTATOR {
         //
         // SUBWORKFLOW: Identify contained reference genomes
         //
-        ch_containment_results_tsv = FASTQ_FASTA_REFERENCE_CONTAINMENT_MASH ( fastq_gz, ch_filtered_input_fasta_gz, ch_reference_virus_fasta_gz.first(), ch_reference_virus_sketch_msh ).mash_screen_results
+        ch_containment_results_tsv = FASTQ_FASTA_REFERENCE_CONTAINMENT_MASH ( ch_fastq_gz_branch.fastq_included, ch_filtered_input_fasta_gz, ch_reference_virus_fasta_gz.first(), ch_reference_virus_sketch_msh ).mash_screen_results
         ch_versions = ch_versions.mix(FASTQ_FASTA_REFERENCE_CONTAINMENT_MASH.out.versions.first())
 
         // join mash screen and assembly fasta by meta.id
-        ch_append_screen_hits_input = ch_containment_results_tsv.join( ch_filtered_input_fasta_gz, by:0 )
-
+        ch_append_screen_hits_input = ch_containment_results_tsv.join( ch_filtered_input_w_missing_fasta_gz, by:0, remainder: true )
         //
         // MODULE: Append screen hits to assemblies
         //

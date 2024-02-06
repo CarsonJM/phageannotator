@@ -60,10 +60,11 @@ def append_screen_hits(reference_fasta, mash_screen_results, assembly_fasta, pre
                     record.id = "mash_screen|" + record.id
                     contained_genomes.append(record)
                     tested_genomes.add(record.id)
-    with gzip.open(assembly_fasta, "rt") as assembly_fasta_gunzip:
-        for record in SeqIO.parse(assembly_fasta_gunzip, "fasta"):
-            record.id = prefix + "|" + record.id
-            contained_genomes.append(record)
+    if assembly_fasta:
+        with gzip.open(assembly_fasta, "rt") as assembly_fasta_gunzip:
+            for record in SeqIO.parse(assembly_fasta_gunzip, "fasta"):
+                record.id = prefix + "|" + record.id
+                contained_genomes.append(record)
     SeqIO.write(contained_genomes, output, "fasta")
 
 

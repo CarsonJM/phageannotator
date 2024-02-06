@@ -9,19 +9,13 @@ include { MASH_SCREEN                           } from '../../../modules/nf-core
 
 workflow FASTQ_FASTA_REFERENCE_CONTAINMENT_MASH {
     take:
-    fastq_gz                // [ [ meta.id ] , [ 1.fastq.gz, 2.fastq.gz ]  , reads (mandatory)
+    fastq_gz                // [ [ meta.id ] , [ 1.fastq.gz, 2.fastq.gz ]  , reads (optional)
     assembly_fasta_gz       // [ [ meta.id ] , fasta.gz ]                  , assemblies (optional)
     reference_fasta_gz      // [ [ meta.id ] , fasta.gz ]                  , reference sequences (mandatory)
     reference_sketch_msh    // [ [ meta.id ] , fasta.msh ]                 , reference_sequences_sketch (optional)
 
     main:
     ch_versions = Channel.empty()
-
-    //
-    // MODULE: Create a sketch of assemblies
-    //
-    ch_assembly_sketch_msh = MASH_SKETCH_ASSEMBLIES ( assembly_fasta_gz ).mash
-    ch_versions = ch_versions.mix(MASH_SKETCH_ASSEMBLIES.out.versions.first())
 
     // if provided, use reference sketch. If not, create one
     if ( reference_sketch_msh ) {
@@ -34,14 +28,55 @@ workflow FASTQ_FASTA_REFERENCE_CONTAINMENT_MASH {
         ch_versions = ch_versions.mix(MASH_SKETCH_REFERENCES.out.versions.first())
     }
 
+    // identify which assemblies have an associated fastq file
+    ch_fasta_gz_w_fastq_gz = fastq_gz
+        .join( assembly_fasta_gz, by:0 )
+        .map {
+            meta, fastq_gz, fasta_gz ->
+            [ meta, fasta_gz]
+        }
+
+    //
+    // MODULE: Create a sketch of assemblies that have associated fastq files
+    //
+    ch_assembly_sketch_msh = MASH_SKETCH_ASSEMBLIES ( ch_fasta_gz_w_fastq_gz ).mash
+    ch_versions = ch_versions.mix(MASH_SKETCH_ASSEMBLIES.out.versions.first())
+
     //
     // MODULE: Combine assembly and reference sketches
     //
     ch_combined_sketch_msh = MASH_PASTE ( ch_assembly_sketch_msh, ch_reference_sketch_msh.collect() ).msh
     ch_versions = ch_versions.mix(MASH_PASTE.out.versions.first())
 
-    // join reads and combined sketch by meta.id
-    ch_mash_screen_input = fastq_gz.join( ch_combined_sketch_msh, by:0 )
+    // split fastq files based on whether or not they have a paired assembly file
+    ch_fastq_gz_branch = fastq_gz
+        .join( assembly_fasta_gz, by:0, remainder: true )
+        .branch {
+            meta, fastq_gz, fasta_gz ->
+                fastq_fasta_pair: fastq_gz.size() > 0 && fasta_gz
+                fastq_only: fastq_gz.size() > 0 && !fasta_gz
+        }
+    ch_fastq_gz_fasta_pair = ch_fastq_gz_branch.fastq_fasta_pair
+        .map {
+            meta, fastq_gz, fasta_gz ->
+            [ meta, fastq_gz ]
+        }
+    ch_fastq_gz_only = ch_fastq_gz_branch.fastq_only
+        .map {
+            meta, fastq_gz, fasta_gz ->
+            [ meta, fastq_gz ]
+        }
+
+    ch_fastq_gz_branch.fastq_fasta_pair.view()
+
+    // join reads and combined sketch by meta.id if assemblies are included
+    ch_screen_input_for_paired = ch_fastq_gz_fasta_pair.join( ch_combined_sketch_msh, by:0 )
+
+    // join reads and reference sketch if no assemblies are included
+    ch_screen_input_for_fastq_only = ch_fastq_gz_only.combine( ch_reference_sketch_msh.map { it[1] } )
+
+    // combine the two options for input into mash screen
+    ch_mash_screen_input = ch_screen_input_for_paired.mix( ch_screen_input_for_fastq_only )
 
     //
     // MODULE: Identify contained genomes

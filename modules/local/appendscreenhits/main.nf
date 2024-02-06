@@ -21,11 +21,12 @@ process APPENDSCREENHITS {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def assembly_fasta = assembly_fasta ? "--assembly_fasta ${assembly_fasta}" : ""
     """
     append_screen_hits.py \\
         --reference_fasta $reference_fasta \\
         --mash_screen_results $mash_screen \\
-        --assembly_fasta $assembly_fasta \\
+        ${assembly_fasta} \\
         --prefix $prefix \\
         --output ${prefix}.fasta_w_screen_hits.fna
 
