@@ -9,7 +9,6 @@
 //
 // MODULES: Local modules
 //
-
 include { SEQKIT_SEQ                                } from '../../modules/local/seqkit/seq/main'                                    // TODO: Add to nf-core
 include { APPENDSCREENHITS                          } from '../../modules/local/appendscreenhits/main'
 include { EXTRACTVIRALASSEMBLIES                    } from '../../modules/local/extractviralassemblies/main'
@@ -141,7 +140,7 @@ workflow PHAGEANNOTATOR {
         //
         // SUBWORKFLOW: Classify and annotate sequences
         //
-        if ( !params.skip_genomad ){
+        if ( !params.skip_genomad ) {
             ch_viruses_fna_gz = FASTA_VIRUS_CLASSIFICATION_GENOMAD ( ch_assembly_w_references_fasta_gz, ch_genomad_db ).viruses_fna_gz
             ch_genomad_db_dir = FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.genomad_db
             ch_versions = ch_versions.mix(FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.versions.first())
@@ -201,7 +200,7 @@ workflow PHAGEANNOTATOR {
         //
         // SUBWORKFLOW: Assess virus quality
         //
-        ch_quality_summary_tsv = FASTA_VIRUS_QUALITY_CHECKV ( ch_viruses_fna_gz, ch_checkv_db ).quality_summary_tsv
+        ch_quality_summary_tsv = FASTA_VIRUS_QUALITY_CHECKV ( ch_extended_viruses_fasta_gz, ch_checkv_db ).quality_summary_tsv
         ch_versions = ch_versions.mix(FASTA_VIRUS_QUALITY_CHECKV.out.versions.first())
 
         // create channel for input into QUALITY_FILTER_VIRUSES
@@ -271,7 +270,7 @@ workflow PHAGEANNOTATOR {
         ch_versions = ch_versions.mix( COVERM_CONTIG.out.versions )
     } else {
         ch_alignment_results_tsv = Channel.empty()
-        if ( !params.skip_instrain ) {
+        if ( params.run_instrain ) {
             error "[nf-core/phageannotator] ERROR: skip_read_alignment = true but skip_instrain = false; read alignment must take place for inStrain to run"
         }
     }

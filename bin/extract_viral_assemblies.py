@@ -30,7 +30,8 @@ def extract_viral_assemblies(virus_fasta, output):
     viral_assemblies = []
     with gzip.open(virus_fasta, "rt") as reference_fasta_gunzip:
         for record in SeqIO.parse(reference_fasta_gunzip, "fasta"):
-            viral_assemblies.append(record.id)
+            if not 'mash_screen|' in record.id:
+                viral_assemblies.append(record.id.split('|')[1])
 
     out = open(output, "w")
     for sequence in viral_assemblies:
