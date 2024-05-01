@@ -23,13 +23,29 @@ workflow FASTQ_FASTA_CONTIG_EXTENSION_COBRA {
     //
     // MODULE: Make bowtie2 index
     //
-    ch_fasta_bt2 = BOWTIE2_BUILD ( fasta_gz ).index.first()
+    ch_fasta_bt2 = BOWTIE2_BUILD ( fasta_gz ).index
     ch_versions = ch_versions.mix( BOWTIE2_BUILD.out.versions )
+
+    // join fastq, fasta, bowtie2 index, and viral contigs by meta.id
+    ch_mapping_input = fastq_gz
+        .join(ch_fasta_bt2)
+        .join(fasta_gz)
+        .multiMap { it ->
+            fastq_gz: [ it[0], it[1] ]
+            bt2_index: [ it[0], it[2] ]
+            fasta_gz: [ it[0], it[3] ]
+        }
 
     //
     // SUBWORKFLOW: Align reads to bowtie2 index
     //
-    ch_fasta_alignment_bam = FASTQ_ALIGN_BOWTIE2 ( fastq_gz, ch_fasta_bt2, false, false, fasta_gz ).bam
+    ch_fasta_alignment_bam = FASTQ_ALIGN_BOWTIE2 (
+        ch_mapping_input.fastq_gz,
+        ch_mapping_input.bt2_index,
+        false,
+        false,
+        ch_mapping_input.fasta_gz
+    ).bam
     ch_versions = ch_versions.mix( FASTQ_ALIGN_BOWTIE2.out.versions )
 
     //
