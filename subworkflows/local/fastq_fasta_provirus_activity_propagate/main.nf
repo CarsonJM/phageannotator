@@ -4,8 +4,9 @@
 include { PROPAGATE_EXTRACTPROVIRUSES                           } from '../../../modules/local/propagate/extractproviruses/main'
 include { CAT_CAT as CAT_FASTA                                  } from '../../../modules/nf-core/cat/cat/main'
 include { CAT_CAT as CAT_COORDS                                 } from '../../../modules/nf-core/cat/cat/main'
-include { GUNZIP                                                } from '../../../modules/nf-core/gunzip/main'
-include { FASTA_CLUSTER_BLAST as FASTA_GROUP_DEREPLICATE_BLAST  } from '../fasta_cluster_blast/main'
+include { FASTA_ALL_V_ALL_SKANI as FASTA_GROUP_DEREP_SKANI      } from '../fasta_all_v_all_skani/main'
+include { CHECKVANICLUSTER_ANICLUST                             } from '../../../modules/local/checkvanicluster/aniclust/main'
+include { CHECKVANICLUSTER_EXTRACTREPS                          } from '../../../modules/local/checkvanicluster/extractreps/main'
 include { PROPAGATE_DEREPCOORDINATES                            } from '../../../modules/local/propagate/derepcoordinates/main'
 include { PROPAGATE_PROPAGATE                                   } from '../../../modules/local/propagate/propagate/main'
 
@@ -25,9 +26,13 @@ workflow FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE {
     //
     // MODULE: Identify integrated proviruses (and optionally assign to clusters)
     //
-    ch_provirus_scaffolds_fasta_gz  = PROPAGATE_EXTRACTPROVIRUSES ( fasta_gz, ch_virus_summaries_tsv, ch_contamination_tsv ).provirus_scaffolds
+    ch_provirus_scaffolds_fasta_gz  = PROPAGATE_EXTRACTPROVIRUSES (
+        fasta_gz,
+        ch_virus_summaries_tsv,
+        ch_contamination_tsv
+    ).provirus_scaffolds
     ch_provirus_coords_tsv          = PROPAGATE_EXTRACTPROVIRUSES.out.provirus_coords
-    ch_versions                     = ch_versions.mix(PROPAGATE_EXTRACTPROVIRUSES.out.versions)
+    ch_versions                     = ch_versions.mix ( PROPAGATE_EXTRACTPROVIRUSES.out.versions )
 
     // combine provirus assemblies by group
     ch_grouped_proviruses_fasta_gz = ch_provirus_scaffolds_fasta_gz
@@ -43,7 +48,7 @@ workflow FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE {
     // MODULE: Concatenate provirus assemblies within groups
     //
     ch_combined_proviruses_fasta_gz = CAT_FASTA ( ch_grouped_proviruses_fasta_gz ).file_out
-    ch_versions                     = ch_versions.mix(CAT_FASTA.out.versions)
+    ch_versions                     = ch_versions.mix ( CAT_FASTA.out.versions )
 
     //
     // SUBWORKFLOW: Dereplicate provirus-containing assemblies within groups
@@ -56,12 +61,6 @@ workflow FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE {
     ).cluster_reps_fasta_gz
     ch_derep_clusters_tsv       = FASTA_GROUP_DEREPLICATE_BLAST.out.clusters_tsv
     ch_versions                 = ch_versions.mix ( FASTA_GROUP_DEREPLICATE_BLAST.out.versions )
-
-    //
-    // MODULE: Gunzip assemblies for input into propagate
-    //
-    ch_derep_scaffolds_fasta    = GUNZIP ( ch_derep_scaffolds_fasta_gz ).gunzip
-    ch_versions                 = ch_versions.mix ( GUNZIP.out.versions )
 
     // Combine coords files within groups
     ch_grouped_coords_tsv = ch_provirus_coords_tsv
@@ -90,7 +89,10 @@ workflow FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE {
     //
     // MODULE: Identify provirus coordinates in dereplicated assemblies
     //
-    ch_derep_provirus_coords_tsv    = PROPAGATE_DEREPCOORDINATES ( ch_derep_coords_input.coords, ch_derep_coords_input.clusters ).derep_coords
+    ch_derep_provirus_coords_tsv    = PROPAGATE_DEREPCOORDINATES (
+        ch_derep_coords_input.coords,
+        ch_derep_coords_input.clusters
+    ).derep_coords
     ch_versions                     = ch_versions.mix ( PROPAGATE_DEREPCOORDINATES.out.versions )
 
     // join reads with assemblies and provirus coords by group
@@ -103,17 +105,17 @@ workflow FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE {
 
                 return [ meta_new, meta.id, fastq ]
         }
-        .join ( ch_derep_scaffolds_fasta, by:0 )
+        .join ( ch_derep_scaffolds_fasta_gz, by:0 )
         .join ( ch_derep_provirus_coords_tsv, by: 0 )
         .multiMap {
-            meta, id, fastq, fasta, coords ->
+            meta, id, fastq_gz, fasta_gz, coords ->
                 def meta_new = [:]
 
                 meta_new.id     = id
                 meta_new.group  = meta.id
 
-                reads: [ meta_new, fastq ]
-                assemblies: [ meta_new, fasta ]
+                fastq_gz: [ meta_new, fastq_gz ]
+                fasta_gz: [ meta_new, fasta_gz ]
                 coords: [ meta_new, coords ]
         }
 
@@ -121,11 +123,11 @@ workflow FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE {
     // MODULE: Predict provirus activity
     //
     ch_propagate_results_tsv    = PROPAGATE_PROPAGATE (
-        ch_propagate_input.reads,
-        ch_propagate_input.assemblies,
+        ch_propagate_input.fastq_gz,
+        ch_propagate_input.fasta_gz,
         ch_propagate_input.coords
-        ).results
-    ch_versions                 = ch_versions.mix(PROPAGATE_PROPAGATE.out.versions)
+    ).results
+    ch_versions                 = ch_versions.mix ( PROPAGATE_PROPAGATE.out.versions )
 
     emit:
     propagate_results_tsv   = ch_propagate_results_tsv  // [ [ meta ], propagate_results.tsv ]  , TSV file containing provirus activity predictions

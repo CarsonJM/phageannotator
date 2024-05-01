@@ -1,18 +1,15 @@
 //
 // Extend contig ends using COBRA
 //
-
-include { BOWTIE2_BUILD                 } from '../../../modules/nf-core/bowtie2/build/main'
-include { FASTQ_ALIGN_BOWTIE2           } from '../../nf-core/fastq_align_bowtie2/main'
-include { GUNZIP                        } from '../../../modules/nf-core/gunzip/main'
-include { COVERM_CONTIG as COVERM_COBRA } from '../../../modules/local/coverm/contig/main'
+include { EXTRACTVIRALASSEMBLIES        } from '../../../modules/local/extractviralassemblies/main'
+include { COVERM_CONTIG as COBRA_COVERM } from '../../../modules/local/coverm/contig/main'
 include { COBRAMETA                     } from '../../../modules/nf-core/cobrameta/main'
 
 workflow FASTQ_FASTA_CONTIG_EXTENSION_COBRA {
     take:
     fastq_gz            // [ [ meta ], [ reads_1.fastq.gz, reads_2.fastq.gz ] ] , read files (mandatory)
     fasta_gz            // [ [ meta ], fasta.gz ]                               , assemblies/scaffolds (mandatory)
-    viral_contigs_tsv   // [ [ meta ], virus_contigs.tsv ]                      , TSV file containing viral contig names
+    virus_summary_tsv   // [ [ meta ], virus_contigs.tsv ]                      , TSV file containing geNomad's virus summary
     cobra_assembler     // val:string {metaspades|megahit|idba}                 , string specifying which assembler was used
     mink                // val:int [ 0-999 ]                                    , integer specifying minimum kmer size used by assembler
     maxk                // val:int [ 0-999 ]                                    , integer specifying maximum kmer size used by assembler
@@ -21,38 +18,16 @@ workflow FASTQ_FASTA_CONTIG_EXTENSION_COBRA {
     ch_versions = Channel.empty()
 
     //
-    // MODULE: Make bowtie2 index
+    // MODULE: Create a TSV file containing viral contig names (from assemblies)
     //
-    ch_fasta_bt2 = BOWTIE2_BUILD ( fasta_gz ).index
-    ch_versions = ch_versions.mix( BOWTIE2_BUILD.out.versions )
-
-    // join fastq, fasta, bowtie2 index, and viral contigs by meta.id
-    ch_mapping_input = fastq_gz
-        .join(ch_fasta_bt2)
-        .join(fasta_gz)
-        .multiMap { it ->
-            fastq_gz: [ it[0], it[1] ]
-            bt2_index: [ it[0], it[2] ]
-            fasta_gz: [ it[0], it[3] ]
-        }
-
-    //
-    // SUBWORKFLOW: Align reads to bowtie2 index
-    //
-    ch_fasta_alignment_bam = FASTQ_ALIGN_BOWTIE2 (
-        ch_mapping_input.fastq_gz,
-        ch_mapping_input.bt2_index,
-        false,
-        false,
-        ch_mapping_input.fasta_gz
-    ).bam
-    ch_versions = ch_versions.mix( FASTQ_ALIGN_BOWTIE2.out.versions )
+    ch_viral_assemblies_tsv = EXTRACTVIRALASSEMBLIES ( ch_viruses_fna_gz ).viral_assemblies
+    ch_versions = ch_versions.mix(EXTRACTVIRALASSEMBLIES.out.versions)
 
     //
     // MODULE: Calculate abundance metrics from BAM file
     //
-    ch_coverage_tsv = COVERM_COBRA ( ch_fasta_alignment_bam ).alignment_results
-    ch_versions = ch_versions.mix( COVERM_COBRA.out.versions )
+    ch_coverage_tsv = COBRA_COVERM ( fastq_gz, fasta_gz ).alignment_results
+    ch_versions     = ch_versions.mix( COBRA_COVERM.out.versions )
 
     // Remove header from coverage file
     ch_coverage_mod = ch_coverage_tsv
@@ -69,20 +44,13 @@ workflow FASTQ_FASTA_CONTIG_EXTENSION_COBRA {
                 }
             }
         }
-
         return [ meta, tsv_mod ]
     }
-
-    //
-    // MODULE: Gunzip FASTA file
-    //
-    ch_fasta = GUNZIP ( fasta_gz ).gunzip
-    ch_versions = ch_versions.mix( GUNZIP.out.versions )
 
     // prepare input for cobra
     ch_cobra_input = ch_fasta
         .join(ch_coverage_mod)
-        .join(viral_contigs_tsv)
+        .join(ch_viral_assemblies_tsv)
         .join(ch_fasta_alignment_bam)
         .multiMap { it ->
             fasta: [ it[0], it[1] ]
@@ -90,7 +58,6 @@ workflow FASTQ_FASTA_CONTIG_EXTENSION_COBRA {
             query: [ it[0], it[3] ]
             bam: [ it[0], it[4] ]
         }
-
 
     //
     // MODULE: Extend contigs using COBRA
@@ -104,10 +71,10 @@ workflow FASTQ_FASTA_CONTIG_EXTENSION_COBRA {
         mink,
         maxk
     ).all_cobra_assemblies
-    ch_versions = ch_versions.mix( COBRAMETA.out.versions )
+    ch_versions         = ch_versions.mix( COBRAMETA.out.versions )
 
     emit:
-    extended_fasta      = ch_extended_fasta_gz  // [ [ meta ], extended_contigs.fna.gz ]    , FASTA file containing extended contigs
-    cobra_summary_tsv   = COBRAMETA.out.joining_summary
-    versions            = ch_versions.unique()  // [ versions.yml ]
+    extended_fasta      = ch_extended_fasta_gz          // [ [ meta ], extended_contigs.fna.gz ]    , FASTA file containing extended contigs
+    cobra_summary_tsv   = COBRAMETA.out.joining_summary // [ [ meta ], cobra_summary.tsv ]          , TSV file containing COBRA summary
+    versions            = ch_versions.unique()          // [ versions.yml ]
 }

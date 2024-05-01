@@ -1,17 +1,14 @@
 //
 // Assess virus microdiversity with instrain
 //
-
 include { INSTRAIN_PROFILE          } from '../../../modules/nf-core/instrain/profile/main'
 include { INSTRAIN_COMPARE          } from '../../../modules/nf-core/instrain/compare/main'
-
 
 workflow FASTA_MICRODIVERSITY_INSTRAIN {
     take:
     bam             // [ [ meta ], bam ]        , BAM files from reads aligned to FASTA file (mandatory)
     genome_fasta    // [ [ meta ], fasta ]      , FASTA file used in read alignment (mandatory)
     proteins_fna    // [ [ meta ], fna ]        , FASTA file for protein-coding genes (optional)
-    instrain_stb    // [ [ meta ], stb.tsv ]    , TSV file with two columns for associationg scaffolds to bins (optional)
 
     main:
     ch_versions = Channel.empty()
@@ -28,6 +25,12 @@ workflow FASTA_MICRODIVERSITY_INSTRAIN {
     } else {
         ch_stb_file_tsv_nometa = []
     }
+
+    //
+    // MODULE: Generate instrain scaffold to bin file
+    //
+    ch_stb_file_tsv     = INSTRAIN_STB ( genome_fasta ).stb
+    ch_versions         = ch_versions.mix ( INSTRAIN_STB.out.versions )
 
     //
     // MODULE: Profile microdiveristy within each sample

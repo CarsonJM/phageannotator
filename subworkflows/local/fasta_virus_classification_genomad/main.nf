@@ -1,9 +1,8 @@
 //
 // Classify and annotate sequences with geNomad
 //
-
 include { GENOMAD_DOWNLOAD   } from '../../../modules/nf-core/genomad/download/main'
-include { GENOMAD_ENDTOEND   } from '../../../modules/nf-core/genomad/endtoend/main'    // TODO: Update nf-core module to gzip output files
+include { GENOMAD_ENDTOEND   } from '../../../modules/nf-core/genomad/endtoend/main'
 
 workflow FASTA_VIRUS_CLASSIFICATION_GENOMAD {
     take:
@@ -20,16 +19,16 @@ workflow FASTA_VIRUS_CLASSIFICATION_GENOMAD {
         //
         // MODULE: download geNomad database
         //
-        ch_genomad_db = GENOMAD_DOWNLOAD( ).genomad_db
-        ch_versions = ch_versions.mix(GENOMAD_DOWNLOAD.out.versions.first())
+        ch_genomad_db   = GENOMAD_DOWNLOAD( ).genomad_db
+        ch_versions     = ch_versions.mix( GENOMAD_DOWNLOAD.out.versions )
     }
 
     //
-    // MODULE: Classify/annotate viral sequences
+    // MODULE: Run geNomad end-to-end
     //
-    ch_viruses_fna_gz = GENOMAD_ENDTOEND ( fasta_gz, ch_genomad_db ).virus_fasta
-    ch_virus_summaries_tsv = GENOMAD_ENDTOEND.out.virus_summary
-    ch_versions = ch_versions.mix(GENOMAD_ENDTOEND.out.versions.first())
+    ch_viruses_fna_gz       = GENOMAD_ENDTOEND ( fasta_gz, ch_genomad_db ).virus_fasta
+    ch_virus_summaries_tsv  = GENOMAD_ENDTOEND.out.virus_summary
+    ch_versions             = ch_versions.mix( GENOMAD_ENDTOEND.out.versions )
 
     emit:
     genomad_db          = ch_genomad_db             // [ genomad_db/ ]                  , directory containing genomad_db files

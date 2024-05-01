@@ -24,17 +24,23 @@ process CHECKV_ENDTOEND {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
-    prefix = task.ext.prefix ?: "${meta.id}"
+    def args            = task.ext.args ?: ''
+    def fasta_name      = fasta.getName().replace(".gz", "")
+    prefix              = task.ext.prefix ?: "${meta.id}"
 
     """
+    if [[ ${fasta} == *.gz ]]
+    then
+        gunzip -c ${fasta} > ${fasta_name}
+    fi
+
     checkv \\
         end_to_end \\
-        $args \\
-        -t $task.cpus \\
-        -d $db \\
-        $fasta \\
-        $prefix
+        -t ${task.cpus} \\
+        -d ${db} \\
+        ${fasta_name} \\
+        ${prefix} \\
+        ${args}
 
     gzip ${prefix}/*viruses.fna
 

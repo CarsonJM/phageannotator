@@ -1,7 +1,6 @@
 //
 // Estimate viral enrichment in reads
 //
-
 include { VIROMEQC_INSTALL  } from '../../../modules/local/viromeqc/install/main'
 include { VIROMEQC_VIROMEQC } from '../../../modules/local/viromeqc/viromeqc/main'
 
@@ -15,14 +14,14 @@ workflow FASTQ_VIRUS_ENRICHMENT_VIROMEQC {
     //
     // MODULE: Install ViromeQC index
     //
-    ch_viromeqc_index = VIROMEQC_INSTALL ( ).viromeqc_index
-    ch_versions = ch_versions.mix(VIROMEQC_INSTALL.out.versions.first())
+    ch_viromeqc_index   = VIROMEQC_INSTALL ( ).viromeqc_index
+    ch_versions         = ch_versions.mix( VIROMEQC_INSTALL.out.versions )
 
     //
     // MODULE: Estimate viral enrichment
     //
-    ch_enrichment_tsv = VIROMEQC_VIROMEQC ( fastq_gz, ch_viromeqc_index ).enrichment
-    ch_versions = ch_versions.mix(VIROMEQC_VIROMEQC.out.versions.first())
+    ch_enrichment_tsv   = VIROMEQC_VIROMEQC ( fastq_gz, ch_viromeqc_index ).enrichment
+    ch_versions         = ch_versions.mix( VIROMEQC_VIROMEQC.out.versions )
 
     emit:
     enrichment_tsv  = ch_enrichment_tsv // [ [ meta.id ] , enrichment.tsv ]  , viral enrichment estimates

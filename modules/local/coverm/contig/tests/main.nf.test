@@ -5,17 +5,21 @@ nextflow_process {
     process "COVERM_CONTIG"
 
 
-    test("test1_paired_end.bam & test_2paired_end.bam") {
+    test("fastq.gz + fasta.gz") {
 
         when {
             process {
                 """
                 input[0] = [
-                    [ id: 'all_samples' ],
+                    [ id: 'test1' ],
                     [
-                        file(params.modules_testdata_base_path + 'genomics/prokaryotes/bacteroides_fragilis/illumina/bam/test1.bam', checkIfExists: true),
-                        file(params.modules_testdata_base_path + 'genomics/prokaryotes/bacteroides_fragilis/illumina/bam/test2.bam', checkIfExists: true)
+                        file(params.modules_testdata_base_path + 'genomics/prokaryotes/bacteroides_fragilis/illumina/fastq/test1_1.fastq.gz', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'genomics/prokaryotes/bacteroides_fragilis/illumina/fastq/test1_2.fastq.gz', checkIfExists: true)
                     ]
+                ]
+                input[1] = [
+                    [ id: 'test1' ],
+                    file(params.modules_testdata_base_path + 'genomics/prokaryotes/bacteroides_fragilis/illumina/fasta/test1.contigs.fa.gz', checkIfExists: true)
                 ]
                 """
             }
@@ -29,7 +33,7 @@ nextflow_process {
         }
     }
 
-    test("test1_paired_end.bam & test_2paired_end.bam - stub") {
+    test("fastq.gz + fasta.gz - stub") {
 
         options "-stub"
 

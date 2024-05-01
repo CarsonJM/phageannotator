@@ -10,7 +10,6 @@ process IPHOP_PREDICT {
     input:
     tuple val(meta), path(fasta)
     path iphop_db
-    path iphop_partial_input
 
     output:
     tuple val(meta), path("Host_prediction_to_genus_m*.csv")    , emit: iphop_genus
@@ -24,18 +23,15 @@ process IPHOP_PREDICT {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def partial_run = params.iphop_partial_test ? "mkdir -p iphop_results/Wdir; cp -r ${iphop_partial_input}/* iphop_results/Wdir/" : ""
     """
-    $partial_run
-
     export PERL5LIB=/usr/local/lib/perl5/site_perl/5.22.0
     iphop \\
         predict \\
-        --fa_file $fasta \\
+        --fa_file ${fasta} \\
         --out_dir iphop_results \\
-        --db_dir $iphop_db \\
-        --num_threads $task.cpus \\
-        $args
+        --db_dir ${iphop_db} \\
+        --num_threads ${task.cpus} \\
+        ${args}
 
     mv iphop_results/Host_prediction_to_genus_m*.csv .
     mv iphop_results/Host_prediction_to_genome_m*.csv .
