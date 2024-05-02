@@ -72,36 +72,35 @@ workflow PIPELINE_INITIALISATION {
     UTILS_NFCORE_PIPELINE (
         nextflow_cli_args
     )
+
+    // Create channel from input file provided through params.input
+    ch_samplesheet = Channel
+        .fromSamplesheet("input")
+        .map {
+            validateInputSamplesheet(it[0], it[1], it[2], it[3])
+        }
+
+    // Prepare FASTQs channel
+    ch_fastq_gz = ch_samplesheet
+        .map { meta, fastq_1, fastq_2, fasta ->
+            return [ meta, [ fastq_1, fastq_2 ] ]
+        }
+
+    // Prepare FASTAs channel
+    ch_fasta_gz = ch_samplesheet
+        .map { meta, fastq_1, fastq_2, fasta ->
+            return [ meta, fasta ]
+        }
+
     //
     // Custom validation for pipeline parameters
     //
     validateInputParameters()
 
-    //
-    // Create channel from input file provided through params.input
-    //
-    Channel
-        .fromSamplesheet("input")
-        .map {
-            meta, fastq_1, fastq_2, fasta ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ], fasta ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ], fasta ]
-                }
-        }
-        .groupTuple()
-        .map {
-            validateInputSamplesheet(it)
-        }
-        .map {
-            meta, fastqs, fasta ->
-                return [ meta, fastqs.flatten(), fasta ]
-        }
-        .set { ch_samplesheet }
 
     emit:
-    samplesheet = ch_samplesheet
+    fastq_gz    = ch_fastq_gz
+    fasta_gz    = ch_fasta_gz
     versions    = ch_versions
 }
 
@@ -120,7 +119,6 @@ workflow PIPELINE_COMPLETION {
     outdir          //    path: Path to output directory where results will be published
     monochrome_logs // boolean: Disable ANSI colour codes in log output
     hook_url        //  string: hook URL for notifications
-    multiqc_report  //  string: Path to MultiQC report
 
     main:
 
@@ -157,16 +155,8 @@ def validateInputParameters() {
 //
 // Validate channels from input samplesheet
 //
-def validateInputSamplesheet(input) {
-    def (metas, fastqs, fasta) = input[1..3]
-
-    // Check that multiple runs of the same sample are of the same datatype i.e. single-end / paired-end
-    def endedness_ok = metas.collect{ it.single_end }.unique().size == 1
-    if (!endedness_ok) {
-        error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
-    }
-
-    return [ metas[0], fastqs, fasta ]
+def validateInputSamplesheet(meta, fastq_1, fastq_2, fasta) {
+    return [ meta, fastq_1, fastq_2, fasta ]
 }
 //
 // Get attribute from genome config file e.g. fasta

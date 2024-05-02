@@ -11,7 +11,7 @@ process SKANI_TRIANGLE {
     tuple val(meta) , path(queries)
 
     output:
-    tuple val(meta), path("${prefix}.tsv")  , emit: triangle
+    tuple val(meta), path("${prefix}.tsv")  , emit: ani_tsv
     path "versions.yml"                     , emit: versions
 
     when:

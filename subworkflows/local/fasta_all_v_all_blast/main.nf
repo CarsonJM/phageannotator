@@ -33,6 +33,6 @@ workflow FASTA_ALL_V_ALL_BLAST {
 
     emit:
     blast_ani_tsv   = ch_blast_ani_tsv  // [ [ meta ], ani.tsv ]   , TSV file containing BLAST all-v-all ANI and AF values
-    ch_versions     = ch_versions       // [ versions.yml ]
+    versions     = ch_versions       // [ versions.yml ]
 
 }

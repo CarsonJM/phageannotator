@@ -1,0 +1,14 @@
+{
+    "run_nucmer_ani = true": {
+        "content": [
+            [
+                "all_samples.coords.tsv:md5,5b664ec6f6e7a9f609fc577f162464cc"
+            ]
+        ],
+        "meta": {
+            "nf-test": "0.8.4",
+            "nextflow": "23.10.1"
+        },
+        "timestamp": "2024-05-02T16:12:34.856492165"
+    }
+}

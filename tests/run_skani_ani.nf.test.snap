@@ -1,0 +1,14 @@
+{
+    "run_skani_ani = true": {
+        "content": [
+            [
+                "all_samples.tsv:md5,9dd583cba3394fd4b46e377cc5e43a5a"
+            ]
+        ],
+        "meta": {
+            "nf-test": "0.8.4",
+            "nextflow": "23.10.1"
+        },
+        "timestamp": "2024-05-02T12:19:20.363903294"
+    }
+}

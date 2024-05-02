@@ -3,9 +3,6 @@
     IMPORT LOCAL MODULES/SUBWORKFLOWS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-
-// TODO: Update nf-core modules versions
-
 //
 // MODULES: Local modules
 //
@@ -17,8 +14,9 @@ include { COVERM_CONTIG                             } from '../../modules/local/
 include { INSTRAIN_STB                              } from '../../modules/local/instrain/stb/main'
 
 //
-// SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
+// SUBWORKFLOWS: Consisting of a mix of local and nf-core/modules
 //
+include { methodsDescriptionText                    } from '../../subworkflows/local/utils_nfcore_phageannotator_pipeline'
 include { FASTQ_VIRUS_ENRICHMENT_VIROMEQC           } from '../../subworkflows/local/fastq_virus_enrichment_viromeqc/main'
 include { FASTA_VIRUS_CLASSIFICATION_GENOMAD        } from '../../subworkflows/local/fasta_virus_classification_genomad/main'       // TODO: Add to nf-core; Add nf-tests to nf-core modules
 include { FASTQ_FASTA_CONTIG_EXTENSION_COBRA        } from '../../subworkflows/local/fastq_fasta_contig_extension_cobra/main'       // TODO: Add to nf-core; Add nf-tests to nf-core modules
@@ -34,14 +32,26 @@ include { FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE   } from '../../subworkflows/l
     IMPORT NF-CORE MODULES/SUBWORKFLOWS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+//
+// PLUGINS
+//
+include { paramsSummaryMap       } from 'plugin/nf-validation'
 
 //
-// MODULE: Installed directly from nf-core/modules
+// MODULES: Installed directly from nf-core/modules
 //
-include { CAT_CAT as CAT_VIRUSES                } from '../../modules/nf-core/cat/cat/main'
-include { GENOMAD_ENDTOEND as GENOMAD_TAXONOMY  } from '../../modules/nf-core/genomad/endtoend/main'
 include { BACPHLIP                              } from '../../modules/nf-core/bacphlip/main'
+include { CAT_CAT as CAT_VIRUSES                } from '../../modules/nf-core/cat/cat/main'
+include { FASTQC                                } from '../../modules/nf-core/fastqc/main'
+include { GENOMAD_ENDTOEND as GENOMAD_TAXONOMY  } from '../../modules/nf-core/genomad/endtoend/main'
+include { MULTIQC                               } from '../../modules/nf-core/multiqc/main'
+include { NUCMER                                } from '../../modules/nf-core/nucmer/main'
 
+//
+// SUBWORKFLOWS: Installed directly from nf-core/modules
+//
+include { paramsSummaryMultiqc   } from '../../subworkflows/nf-core/utils_nfcore_pipeline'
+include { softwareVersionsToYAML } from '../../subworkflows/nf-core/utils_nfcore_pipeline'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -56,7 +66,23 @@ workflow PHAGEANNOTATOR {
     fasta_gz    // [ [ meta ], assembly.fasta.gz ]  , assemblies/genomes (mandatory)
 
     main:
+    ch_multiqc_files    = Channel.empty()
     ch_versions         = Channel.empty()
+
+    // make a channel for each item that contains a fastq file
+    ch_fastq_gz = fastq_gz
+        .branch {
+            meta, fastq_gz ->
+                fastq_included: fastq_gz[0].size() > 0
+                fastq_missing: fastq_gz[0].size() == 0
+        }
+
+    //
+    // MODULE: Run FastQC
+    //
+    FASTQC ( ch_fastq_gz.fastq_included )
+    ch_multiqc_files    = ch_multiqc_files.mix ( FASTQC.out.zip.collect{it[1]} )
+    ch_versions         = ch_versions.mix ( FASTQC.out.versions  )
 
 
     /*----------------------------------------------------------------------------
@@ -66,8 +92,8 @@ workflow PHAGEANNOTATOR {
         //
         // SUBWORKFLOW: Download and run ViromeQC
         //
-        ch_virus_enrichment_tsv = FASTQ_VIRUS_ENRICHMENT_VIROMEQC ( fastq_gz ).enrichment_tsv
-        ch_versions = ch_versions.mix( FASTQ_VIRUS_ENRICHMENT_VIROMEQC.out.versions )
+        ch_virus_enrichment_tsv = FASTQ_VIRUS_ENRICHMENT_VIROMEQC ( ch_fastq_gz.fastq_included ).enrichment_tsv
+        ch_versions             = ch_versions.mix ( FASTQ_VIRUS_ENRICHMENT_VIROMEQC.out.versions )
     } else {
         ch_virus_enrichment_tsv = Channel.empty()
     }
@@ -80,10 +106,10 @@ workflow PHAGEANNOTATOR {
         //
         // MODULE: Filter assemblies by length
         //
-        ch_filtered_input_fasta_gz = SEQKIT_SEQ ( fasta_gz ).fastx
-        ch_versions = ch_versions.mix( SEQKIT_SEQ.out.versions )
+        ch_filtered_input_fasta_gz  = SEQKIT_SEQ ( fasta_gz ).fastx
+        ch_versions                 = ch_versions.mix ( SEQKIT_SEQ.out.versions )
     } else {
-        ch_filtered_input_fasta_gz = Channel.empty()
+        ch_filtered_input_fasta_gz  = fasta_gz
     }
 
 
@@ -102,22 +128,22 @@ workflow PHAGEANNOTATOR {
             //
             // SUBWORKFLOW: Download and run geNomad
             //
-            ch_viruses_fna_gz = FASTA_VIRUS_CLASSIFICATION_GENOMAD ( ch_filtered_input_fasta_gz, ch_genomad_db ).viruses_fna_gz
-            ch_genomad_db_dir = FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.genomad_db
-            ch_versions = ch_versions.mix(FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.versions.first())
-            ch_virus_summaries_tsv = FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.virus_summaries_tsv
+            ch_viruses_fna_gz       = FASTA_VIRUS_CLASSIFICATION_GENOMAD ( ch_filtered_input_fasta_gz, ch_genomad_db ).viruses_fna_gz
+            ch_genomad_db_dir       = FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.genomad_db
+            ch_versions             = ch_versions.mix ( FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.versions )
+            ch_virus_summaries_tsv  = FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.virus_summaries_tsv
         } else {
             //
             // SUBWORKFLOW: Download genomad database
             //
-            ch_genomad_db_dir = FASTA_VIRUS_CLASSIFICATION_GENOMAD ( Channel.empty(), ch_genomad_db ).genomad_db
-            ch_versions = ch_versions.mix(FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.versions.first())
-            ch_viruses_fna_gz = ch_filtered_input_fasta_gz
-            ch_virus_summaries_tsv = Channel.empty()
+            ch_genomad_db_dir       = FASTA_VIRUS_CLASSIFICATION_GENOMAD ( Channel.empty(), ch_genomad_db ).genomad_db
+            ch_versions             = ch_versions.mix ( FASTA_VIRUS_CLASSIFICATION_GENOMAD.out.versions )
+            ch_viruses_fna_gz       = ch_filtered_input_fasta_gz
+            ch_virus_summaries_tsv  = Channel.empty()
         }
     } else {
-        ch_viruses_fna_gz = ch_filtered_input_fasta_gz
-        ch_virus_summaries_tsv = Channel.empty()
+        ch_viruses_fna_gz       = ch_filtered_input_fasta_gz
+        ch_virus_summaries_tsv  = Channel.empty()
     }
 
 
@@ -129,7 +155,7 @@ workflow PHAGEANNOTATOR {
         // SUBWORKFLOW: Extend assembled contigs
         //
         ch_extended_viruses_fasta_gz    = FASTQ_FASTA_CONTIG_EXTENSION_COBRA (
-            fastq_gz,
+            ch_fastq_gz.fastq_included,
             fasta_gz,
             ch_virus_summaries_tsv,
             params.cobra_assembler,
@@ -247,7 +273,7 @@ workflow PHAGEANNOTATOR {
     // TODO: Update python code with Adam's recommendations
     if ( params.run_propagate ){
         ch_provirus_activity_tsv    = FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE (
-            fastq_gz,
+            ch_fastq_gz.fastq_included,
             fasta_gz,
             ch_virus_summaries_tsv,
             ch_quality_summary_tsv,
@@ -265,7 +291,7 @@ workflow PHAGEANNOTATOR {
     /*----------------------------------------------------------------------------
         Calculate all-v-all ANI
     ------------------------------------------------------------------------------*/
-    if ( params.run_blast_ani || params.run_skani_ani ) {
+    if ( params.run_blast_ani || params.run_skani_ani || params.run_nucmer_ani ) {
         // create a channel for combining filtered viruses (sorted so output is the same for tests)
         ch_cat_viruses_input = ch_filtered_viruses_fna_gz
                                 .map { [ [ id:'all_samples' ], it[1] ] }
@@ -283,12 +309,20 @@ workflow PHAGEANNOTATOR {
             //
             ch_blast_ani_tsv    = FASTA_ALL_V_ALL_BLAST ( ch_filtered_viruses_combined_fna_gz ).blast_ani_tsv
             ch_versions         = ch_versions.mix( FASTA_ALL_V_ALL_BLAST.out.versions )
-        } else if ( params.run_skani_ani ) {
+        }
+        if ( params.run_skani_ani ) {
             //
             // SUBWORKFLOW: Calculate skani all-v-all based ANI
             //
-            ch_skani_ani_tsv    = SKANI_TRIANGLE ( ch_filtered_viruses_combined_fna_gz ).skani_tsv
+            ch_skani_ani_tsv    = SKANI_TRIANGLE ( ch_filtered_viruses_combined_fna_gz ).ani_tsv
             ch_versions         = ch_versions.mix( SKANI_TRIANGLE.out.versions )
+        }
+        if ( params.run_nucmer_ani ) {
+            //
+            // SUBWORKFLOW: Calculate skani all-v-all based ANI
+            //
+            ch_nucmer_ani_tsv   = NUCMER ( ch_filtered_viruses_combined_fna_gz ).coords
+            ch_versions         = ch_versions.mix( NUCMER.out.versions )
         }
     } else {
         ch_blast_ani_tsv        = Channel.empty()
@@ -347,6 +381,39 @@ workflow PHAGEANNOTATOR {
     }
 
 
+    /*----------------------------------------------------------------------------
+        Report generation
+    ------------------------------------------------------------------------------*/
+    // Collate and save software versions
+    softwareVersionsToYAML(ch_versions)
+        .collectFile(storeDir: "${params.outdir}/pipeline_info", name: 'nf_core_pipeline_software_mqc_versions.yml', sort: true, newLine: true)
+        .set { ch_collated_versions }
+
+    // Prepare MultiQC inputs
+    ch_multiqc_config                     = Channel.fromPath("$projectDir/assets/multiqc_config.yml", checkIfExists: true)
+    ch_multiqc_custom_config              = params.multiqc_config ? Channel.fromPath(params.multiqc_config, checkIfExists: true) : Channel.empty()
+    ch_multiqc_logo                       = params.multiqc_logo ? Channel.fromPath(params.multiqc_logo, checkIfExists: true) : Channel.empty()
+    summary_params                        = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
+    ch_workflow_summary                   = Channel.value(paramsSummaryMultiqc(summary_params))
+    ch_multiqc_custom_methods_description = params.multiqc_methods_description ? file(params.multiqc_methods_description, checkIfExists: true) : file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
+    ch_methods_description                = Channel.value(methodsDescriptionText(ch_multiqc_custom_methods_description))
+    ch_multiqc_files                      = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
+    ch_multiqc_files                      = ch_multiqc_files.mix(ch_collated_versions)
+    ch_multiqc_files                      = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: false))
+
+    //
+    // MODULE: MultiQC
+    //
+    MULTIQC (
+        ch_multiqc_files.collect(),
+        ch_multiqc_config.toList(),
+        ch_multiqc_custom_config.toList(),
+        ch_multiqc_logo.toList()
+    )
+
+    ch_multiqc_report  = MULTIQC.out.report.toList() // channel: /path/to/multiqc_report.html
+
+
     emit:
     // virus_enrichment_tsv        = ch_virus_enrichment_tsv
     // virus_classification_tsv    = ch_virus_summaries_tsv
@@ -361,7 +428,7 @@ workflow PHAGEANNOTATOR {
     // pharokka_output_tsv         = ch_pharokka_output_tsv
     // instrain_gene_info          = ch_gene_info_tsv
     // propagate_results_tsv       = ch_provirus_activity_tsv
-    versions                    = ch_versions
+    multiqc_report              = ch_multiqc_report
 }
 
 /*

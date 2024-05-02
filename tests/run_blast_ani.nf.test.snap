@@ -1,0 +1,14 @@
+{
+    "run_blast_ani = true": {
+        "content": [
+            [
+                "all_samples_ani.tsv:md5,d2781470e7b8248cf7a1c76b0744e48b"
+            ]
+        ],
+        "meta": {
+            "nf-test": "0.8.4",
+            "nextflow": "23.10.1"
+        },
+        "timestamp": "2024-05-02T11:57:42.026692073"
+    }
+}

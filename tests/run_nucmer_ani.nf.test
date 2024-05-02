@@ -3,15 +3,14 @@ nextflow_pipeline {
     name "Test pipeline: NFCORE_PHAGEANNOTATOR"
     script "main.nf"
     tag "PIPELINE"
-    config "./nextflow.config"
 
 
-    test("run_blast_ani = true") {
+    test("run_nucmer_ani = true") {
         when {
             params {
                 input           = "$projectDir/assets/test-datasets/samplesheets/two_samples_no_reads.csv"
                 outdir          = "$outputDir"
-                run_blast_ani   = true
+                run_nucmer_ani  = true
                 max_cpus        = 4
                 max_memory      = '15.GB'
                 max_time        = '6.h'
@@ -22,7 +21,7 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.success },
                 { assert snapshot(
-                    path("${params.outdir}/ANICalculation/checkvanicluster/anicalc")
+                    path("${params.outdir}/ANICalculation/nucmer/")
                     ).match() },
                 { assert new File("$outputDir/multiqc/multiqc_report.html").exists() }
             )
