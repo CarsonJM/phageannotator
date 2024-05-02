@@ -12,6 +12,7 @@
 include { SEQKIT_SEQ                                } from '../../modules/local/seqkit/seq/main'                                    // TODO: Add to nf-core
 include { EXTRACTVIRALASSEMBLIES                    } from '../../modules/local/extractviralassemblies/main'
 include { QUALITYFILTERVIRUSES                      } from '../../modules/local/qualityfilterviruses/main'
+include { SKANI_TRIANGLE                            } from '../../modules/local/skani/triangle/main'
 include { COVERM_CONTIG                             } from '../../modules/local/coverm/contig/main'                                 // TODO: Add to nf-core
 include { INSTRAIN_STB                              } from '../../modules/local/instrain/stb/main'
 
@@ -23,7 +24,6 @@ include { FASTA_VIRUS_CLASSIFICATION_GENOMAD        } from '../../subworkflows/l
 include { FASTQ_FASTA_CONTIG_EXTENSION_COBRA        } from '../../subworkflows/local/fastq_fasta_contig_extension_cobra/main'       // TODO: Add to nf-core; Add nf-tests to nf-core modules
 include { FASTA_VIRUS_QUALITY_CHECKV                } from '../../subworkflows/local/fasta_virus_quality_checkv/main'               // TODO: Add to nf-core; Add nf-tests to nf-core modules
 include { FASTA_ALL_V_ALL_BLAST                     } from '../../subworkflows/local/fasta_all_v_all_blast/main'
-include { FASTA_ALL_V_ALL_SKANI                     } from '../../subworkflows/local/fasta_all_v_all_skani/main'
 include { FASTA_PHAGE_HOST_IPHOP                    } from '../../subworkflows/local/fasta_phage_host_iphop/main'                   // TODO: Add to nf-core; Add nf-tests to nf-core modules
 include { FASTA_PHAGE_FUNCTION_PHAROKKA             } from '../../subworkflows/local/fasta_phage_function_pharokka/main'
 include { FASTA_MICRODIVERSITY_INSTRAIN             } from '../../subworkflows/local/fasta_microdiversity_instrain/main'            // TODO: Add to nf-core; Add nf-tests to nf-core modules
@@ -287,8 +287,8 @@ workflow PHAGEANNOTATOR {
             //
             // SUBWORKFLOW: Calculate skani all-v-all based ANI
             //
-            ch_skani_ani_tsv    = FASTA_ALL_V_ALL_SKANI ( ch_filtered_viruses_combined_fna_gz ).skani_tsv
-            ch_versions         = ch_versions.mix( FASTA_ALL_V_ALL_SKANI.out.versions )
+            ch_skani_ani_tsv    = SKANI_TRIANGLE ( ch_filtered_viruses_combined_fna_gz ).skani_tsv
+            ch_versions         = ch_versions.mix( SKANI_TRIANGLE.out.versions )
         }
     } else {
         ch_blast_ani_tsv        = Channel.empty()

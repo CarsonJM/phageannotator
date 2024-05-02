@@ -1,22 +1,21 @@
 nextflow_process {
 
-    name "Test Process SKANI_SKETCH"
+    name "Test Process SKANI_TRIANGLE"
     script "../main.nf"
-    process "SKANI_SKETCH"
+    process "SKANI_TRIANGLE"
+    config "./nextflow.config"
 
-    tag "modules"
-    tag "modules_nfcore"
-    tag "skani"
-    tag "skani/sketch"
 
     test("fasta.gz") {
         when {
             process {
                 """
-                input[0] = [
-                    [ id:'test' ], // meta map
-                    file(params.modules_testdata_base_path + "genomics/sarscov2/genome/genome.fasta.gz", checkIfExists: true)
+                input[0] = Channel.of(
+                    [
+                        [ id:'test' ],
+                        file("$projectDir/assets/test-datasets/fastas/MEGAHIT-BUFF_01_B.contigs.fa.gz", checkIfExists: true)
                     ]
+                )
                 """
             }
         }
@@ -36,10 +35,12 @@ nextflow_process {
         when {
             process {
                 """
-                input[0] = [
-                    [ id:'test', single_end:false ], // meta map
-                    file(params.modules_testdata_base_path + "genomics/sarscov2/genome/genome.fasta.gz", checkIfExists: true)
+                input[0] = Channel.of(
+                    [
+                        [ id:'test' ],
+                        file("$projectDir/assets/test-datasets/fastas/MEGAHIT-BUFF_01_B.contigs.fa.gz", checkIfExists: true)
                     ]
+                )
                 """
             }
         }

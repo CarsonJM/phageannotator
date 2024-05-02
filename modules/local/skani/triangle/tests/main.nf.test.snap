@@ -1,5 +1,5 @@
 {
-    "fasta.gz fastq.gz - stub": {
+    "fasta.gz - stub": {
         "content": [
             {
                 "0": [
@@ -30,9 +30,9 @@
             "nf-test": "0.8.4",
             "nextflow": "23.10.1"
         },
-        "timestamp": "2024-04-18T19:45:11.92778001"
+        "timestamp": "2024-05-02T10:32:31.871789783"
     },
-    "fasta.gz fastq.gz": {
+    "fasta.gz": {
         "content": [
             {
                 "0": [
@@ -40,7 +40,7 @@
                         {
                             "id": "test"
                         },
-                        "test.tsv:md5,1ec6d25df7952408655bcdd7ec123600"
+                        "test.tsv:md5,02f07c89daeaae6b760dc88ba42f2d40"
                     ]
                 ],
                 "1": [
@@ -51,7 +51,7 @@
                         {
                             "id": "test"
                         },
-                        "test.tsv:md5,1ec6d25df7952408655bcdd7ec123600"
+                        "test.tsv:md5,02f07c89daeaae6b760dc88ba42f2d40"
                     ]
                 ],
                 "versions": [
@@ -63,6 +63,6 @@
             "nf-test": "0.8.4",
             "nextflow": "23.10.1"
         },
-        "timestamp": "2024-04-18T19:45:01.711228789"
+        "timestamp": "2024-05-02T10:32:24.638790526"
     }
 }

@@ -1,0 +1,27 @@
+nextflow_pipeline {
+
+    name "Test pipeline: NFCORE_PHAGEANNOTATOR"
+    script "main.nf"
+    tag "PIPELINE"
+
+
+    test("run_blast_ani = true") {
+        when {
+            params {
+                input           = "$projectDir/assets/test-datasets/samplesheets/two_samples_no_reads.csv"
+                outdir          = "$outputDir"
+                run_blast_ani   = true
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(
+                    path("${params.outdir}/ANICalculation/checkvanicluster/aanicalc")
+                    ).match() },
+                { assert new File("$outputDir/multiqc/multiqc_report.html").exists() }
+            )
+        }
+    }
+}

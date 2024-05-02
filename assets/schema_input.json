@@ -48,6 +48,6 @@
                 "exists": true
             }
         },
-        "required": ["sample", "group", "fastq_1", "fasta"]
+        "required": ["sample", "group", "fasta"]
     }
 }

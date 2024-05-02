@@ -1,14 +1,14 @@
 //
 // Predict provirus activity with Propagate
 //
-include { PROPAGATE_EXTRACTPROVIRUSES                           } from '../../../modules/local/propagate/extractproviruses/main'
-include { CAT_CAT as CAT_FASTA                                  } from '../../../modules/nf-core/cat/cat/main'
-include { CAT_CAT as CAT_COORDS                                 } from '../../../modules/nf-core/cat/cat/main'
-include { FASTA_ALL_V_ALL_SKANI as FASTA_GROUP_DEREP_SKANI      } from '../fasta_all_v_all_skani/main'
-include { CHECKVANICLUSTER_ANICLUST                             } from '../../../modules/local/checkvanicluster/aniclust/main'
-include { CHECKVANICLUSTER_EXTRACTREPS                          } from '../../../modules/local/checkvanicluster/extractreps/main'
-include { PROPAGATE_DEREPCOORDINATES                            } from '../../../modules/local/propagate/derepcoordinates/main'
-include { PROPAGATE_PROPAGATE                                   } from '../../../modules/local/propagate/propagate/main'
+include { PROPAGATE_EXTRACTPROVIRUSES               } from '../../../modules/local/propagate/extractproviruses/main'
+include { CAT_CAT as CAT_FASTA                      } from '../../../modules/nf-core/cat/cat/main'
+include { CAT_CAT as CAT_COORDS                     } from '../../../modules/nf-core/cat/cat/main'
+include { SKANI_TRIANGLE as SKANI_TRIANGLE_DEREP    } from '../../../modules/local/skani/triangle/main'
+include { CHECKVANICLUSTER_ANICLUST                 } from '../../../modules/local/checkvanicluster/aniclust/main'
+include { CHECKVANICLUSTER_EXTRACTREPS              } from '../../../modules/local/checkvanicluster/extractreps/main'
+include { PROPAGATE_DEREPCOORDINATES                } from '../../../modules/local/propagate/derepcoordinates/main'
+include { PROPAGATE_PROPAGATE                       } from '../../../modules/local/propagate/propagate/main'
 
 workflow FASTQ_FASTA_PROVIRUS_ACTIVITY_PROPAGATE {
     take:
